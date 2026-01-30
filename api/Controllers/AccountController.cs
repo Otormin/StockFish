@@ -25,7 +25,7 @@ namespace api.Controllers
             _signinManager = signinManager;
         }
 
-        [HttpPost("RegisterUser")]
+        [HttpPost("register")]
         public async Task<IActionResult> RegisterUser([FromBody] RegisterDto registerDto)
         {
             try
@@ -67,13 +67,14 @@ namespace api.Controllers
                     return StatusCode(500, createdUser.Errors);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                //_logger.LogError(ex, "Registration failed");
+                return StatusCode(500, "An internal server error occurred.");
             }
         }
 
-        [HttpPost("LoginUser")]
+        [HttpPost("login")]
         public async Task<IActionResult> LoginUser(LoginDto loginDto)
         {
             if (!ModelState.IsValid)
@@ -81,14 +82,20 @@ namespace api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == loginDto.Username.ToLower());
+            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName.ToLower() == loginDto.Username.ToLower());
 
             if(user == null)
             {
-                return Unauthorized("Invalid username!");
+                return Unauthorized("Invalid Username or Password");
             }
 
-            var result = await _signinManager.CheckPasswordSignInAsync(user,loginDto.Password, false);
+            // Enable LockoutOnFailure
+            var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, true);
+
+            if (result.IsLockedOut)
+            {
+                return StatusCode(429, "Account locked due to multiple failed attempts. Please try again later.");
+            }
 
             if (!result.Succeeded)
             {

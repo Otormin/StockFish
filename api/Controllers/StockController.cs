@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using api.Data;
 using api.Dtos.Stock;
 using api.Helpers;
 using api.Interfaces;
@@ -14,16 +13,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers
 {
-    [Route("api/stock")]
+    [Route("api/stocks")]
     [ApiController]
     public class StockController : ControllerBase
     {
-        private readonly ApplicationDBContext _context;
         private readonly IStockRepository _stockrepo;
-        public StockController(ApplicationDBContext context, IStockRepository stockrepo)
+        public StockController(IStockRepository stockrepo)
         {
             _stockrepo = stockrepo;
-            _context = context;
         }
 
         [HttpGet]

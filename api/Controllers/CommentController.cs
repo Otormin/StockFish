@@ -5,38 +5,43 @@ using System.Threading.Tasks;
 using api.Dtos;
 using api.Dtos.Comment;
 using api.Extentions;
+using api.Helpers;
 using api.Interfaces;
 using api.Mappers;
 using api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace api.Controllers
 {
-    [Route("api/comment")]
+    [Route("api/comments")]
     [ApiController]
     public class CommentController : ControllerBase
     {
         private readonly ICommentRepository _commentRepo;
         private readonly IStockRepository _stockRepo;
         private readonly UserManager<AppUser> _usermanager;
+        private readonly IFMPService _fmpService;
 
-        public CommentController(ICommentRepository commentRepo, IStockRepository stockRepo, UserManager<AppUser> usermanager)
+        public CommentController(ICommentRepository commentRepo, IStockRepository stockRepo, UserManager<AppUser> usermanager, IFMPService fmpService)
         {
             _commentRepo = commentRepo;
             _stockRepo = stockRepo;
             _usermanager = usermanager;
+            _fmpService = fmpService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllComments()
+        [Authorize]
+        public async Task<IActionResult> GetAllComments([FromQuery] CommentQueryObject queryObject)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var comments = await _commentRepo.GetAllCommentsAsync();
+            var comments = await _commentRepo.GetAllCommentsAsync(queryObject);
             var CommentDto = comments.Select(s => s.ToCommentDto());
             return Ok(CommentDto);
         }
@@ -60,22 +65,35 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        [Route("{stockId:int}")]
-        public async Task<IActionResult> CreateComment([FromRoute] int stockId, CreateCommentDto commentDto)
+        // The leading "/" overrides the controller's base route (e.g., api/comment)
+        // This creates the exact URL: http://localhost:5172/api/stocks/AAPL/comments
+        [Route("/api/stocks/{symbol:alpha}/comments")]
+        public async Task<IActionResult> CreateComment([FromRoute] string symbol, CreateCommentDto commentDto)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            if(!await _stockRepo.StockExists(stockId)){
-                return BadRequest("Stock does not exist");
+            var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
+
+            if (stock == null)
+            {
+                stock = await _fmpService.FindStockBySymbolAsync(symbol);
+                if (stock == null)
+                {
+                    return BadRequest("This Stock does not exist");
+                }
+                else
+                {
+                    await _stockRepo.CreateStockAsync(stock);
+                }
             }
 
             var username = User.GetUsername();
             var appUser = await _usermanager.FindByNameAsync(username); 
 
-            var commentModel = commentDto.ToCommentFromCreate(stockId);
+            var commentModel = commentDto.ToCommentFromCreate(stock.Id);
             commentModel.AppUserId = appUser.Id;
             await _commentRepo.CreateCommentAsync(commentModel);
             return CreatedAtAction(nameof(GetCommentById), new {id = commentModel.Id}, commentModel.ToCommentDto());

@@ -68,6 +68,12 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options => {
     options.Password.RequireNonAlphanumeric = true;
     options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
+
+    //To stop attackers from bruteforcing their way into our API
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5); // How long they are locked out
+    //The default amount of failed attempts is 5
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddEntityFrameworkStores<ApplicationDBContext>();
 
@@ -97,6 +103,10 @@ builder.Services.AddScoped<IStockRepository, StockRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
+builder.Services.AddScoped<IFMPService, FMPService>();
+
+//for http client
+builder.Services.AddHttpClient<IFMPService, FMPService>();
 
 var app = builder.Build();
 
@@ -107,6 +117,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+//always use CORS after the httpsDirection
+app.UseCors(x => x
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials()
+        //.WithOrigins("https://localhost:44351")
+        .SetIsOriginAllowed(origin => true));
 
 //add for JWT
 app.UseAuthentication();
