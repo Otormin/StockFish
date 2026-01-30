@@ -5,10 +5,12 @@ using api.Repository;
 using api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,6 +110,20 @@ builder.Services.AddScoped<IFMPService, FMPService>();
 //for http client
 builder.Services.AddHttpClient<IFMPService, FMPService>();
 
+//Add RATE LIMITING SERVICES Before builder.Build
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter(policyName: "fixed", options =>
+    {
+        options.PermitLimit = 5; // Allow 5 requests
+        options.Window = TimeSpan.FromSeconds(10); // Every 10 seconds
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        options.QueueLimit = 2; // Allow 2 extra requests to wait in line
+    });
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -125,6 +141,9 @@ app.UseCors(x => x
         .AllowCredentials()
         //.WithOrigins("https://localhost:44351")
         .SetIsOriginAllowed(origin => true));
+
+//Add RATE LIMITING MIDDLEWARE (After CORS, Before Auth)
+app.UseRateLimiter();
 
 //add for JWT
 app.UseAuthentication();

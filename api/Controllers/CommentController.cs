@@ -12,11 +12,14 @@ using api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace api.Controllers
 {
     [Route("api/comments")]
     [ApiController]
+    //To add rate limiting to all your endpoints, althugh it is not adviced
+    //[EnableRateLimiting("fixed")]
     public class CommentController : ControllerBase
     {
         private readonly ICommentRepository _commentRepo;
@@ -47,6 +50,7 @@ namespace api.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetCommentById([FromRoute] int id)
         {
             if (!ModelState.IsValid)
@@ -65,9 +69,11 @@ namespace api.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         // The leading "/" overrides the controller's base route (e.g., api/comment)
-        // This creates the exact URL: http://localhost:5172/api/stocks/AAPL/comments
+        // This creates the exact URL: http://localhost:5172/api/stocks/{symbol}/comments
         [Route("/api/stocks/{symbol:alpha}/comments")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> CreateComment([FromRoute] string symbol, CreateCommentDto commentDto)
         {
             if (!ModelState.IsValid)
@@ -101,6 +107,7 @@ namespace api.Controllers
 
         [HttpPut]
         [Route("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> UpdateComment([FromRoute] int id, [FromBody] UpdateCommentRequestDto updateDto)
         {
             if (!ModelState.IsValid)
@@ -120,6 +127,8 @@ namespace api.Controllers
 
         [HttpDelete]
         [Route("{id:int}")]
+        [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> DeleteComment([FromRoute] int id)
         {
             if (!ModelState.IsValid)

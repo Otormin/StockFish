@@ -9,6 +9,7 @@ using api.Mappers;
 using api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers
@@ -24,7 +25,7 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetAllStocks([FromQuery] QueryObject query)
         {
             if (!ModelState.IsValid)
@@ -40,6 +41,7 @@ namespace api.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetStockById([FromRoute] int id)
         {
             if (!ModelState.IsValid)
@@ -58,6 +60,8 @@ namespace api.Controllers
         }
 
         [HttpPost]
+        [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Create([FromBody] CreateStockRequestDto stockDto)
         {
             if (!ModelState.IsValid)
@@ -71,7 +75,9 @@ namespace api.Controllers
         }
 
         [HttpPut]
+        [Authorize]
         [Route("{id:int}")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateStockrequestDto updateDto)
         {
             if (!ModelState.IsValid)
@@ -89,7 +95,9 @@ namespace api.Controllers
         }
 
         [HttpDelete]
+        [Authorize]
         [Route("{id:int}")]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
             if (!ModelState.IsValid)

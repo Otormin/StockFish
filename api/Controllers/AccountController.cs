@@ -64,7 +64,7 @@ namespace api.Controllers
                 }
                 else
                 {
-                    return StatusCode(500, createdUser.Errors);
+                    return BadRequest(createdUser.Errors);
                 }
             }
             catch (Exception ex)
@@ -82,7 +82,7 @@ namespace api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName.ToLower() == loginDto.Username.ToLower());
+            var user = await _userManager.FindByNameAsync(loginDto.Username);
 
             if(user == null)
             {

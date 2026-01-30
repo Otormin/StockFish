@@ -8,6 +8,7 @@ using api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace api.Controllers
 {
@@ -30,6 +31,7 @@ namespace api.Controllers
 
         [HttpGet]
         [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetUserPortfolio()
         {
             /*
@@ -54,6 +56,7 @@ namespace api.Controllers
 
         [HttpPost]
         [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> AddPortfolio(string symbol)
         {
             var username = User.GetUsername();
@@ -99,6 +102,7 @@ namespace api.Controllers
 
         [HttpDelete]
         [Authorize]
+        [EnableRateLimiting("fixed")]
         public async Task<IActionResult> DeletePortfolio(string symbol)
         {
             var username = User.GetUsername();
