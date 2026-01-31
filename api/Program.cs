@@ -111,6 +111,26 @@ builder.Services.AddScoped<IFMPService, FMPService>();
 builder.Services.AddHttpClient<IFMPService, FMPService>();
 
 //Add RATE LIMITING SERVICES Before builder.Build
+//This does rate limiting per user
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // This creates a policy that looks at the user's IP Address
+    options.AddPolicy("fixed", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10, // Allow 10 requests 
+                Window = TimeSpan.FromSeconds(10), // Every 10 seconds
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
+});
+
+//this does rate limiting for the server
+/*
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -122,7 +142,7 @@ builder.Services.AddRateLimiter(options =>
         options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         options.QueueLimit = 2; // Allow 2 extra requests to wait in line
     });
-});
+}); */
 
 var app = builder.Build();
 
