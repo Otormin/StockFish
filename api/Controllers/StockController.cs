@@ -19,44 +19,51 @@ namespace api.Controllers
     public class StockController : ControllerBase
     {
         private readonly IStockRepository _stockrepo;
-        public StockController(IStockRepository stockrepo)
+        private readonly ILogger<CommentController> _logger;
+        public StockController(IStockRepository stockrepo, ILogger<CommentController> logger)
         {
             _stockrepo = stockrepo;
+            _logger = logger;
+             _logger.LogDebug("Nlog is integrated to Stock Controller");
         }
 
         [HttpGet]
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetAllStocks([FromQuery] QueryObject query)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
+            try{
+                var stocks = await _stockrepo.GetAllStocksAsync(query);
+                
+                var stockDto = stocks.Select(s =>s.ToStockDto()).ToList();
+                
+                return Ok(stockDto);
             }
-
-            var stocks = await _stockrepo.GetAllStocksAsync(query);
-            
-            var stockDto = stocks.Select(s =>s.ToStockDto()).ToList();
-            
-            return Ok(stockDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Get All Stocks failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpGet("{id:int}")]
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetStockById([FromRoute] int id)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
+            try{
+                var stock = await _stockrepo.GetStockByIdAsync(id);
+
+                if (stock == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(stock.ToStockDto());
             }
-
-            var stock = await _stockrepo.GetStockByIdAsync(id);
-
-            if (stock == null)
+            catch (Exception ex)
             {
-                return NotFound();
+                _logger.LogError(ex.Message, "Get Stock by ID failed");
+                return StatusCode(500, "An internal server error occurred.");
             }
-
-            return Ok(stock.ToStockDto());
         }
 
         [HttpPost]
@@ -64,14 +71,17 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Create([FromBody] CreateStockRequestDto stockDto)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
+                var stockModel = stockDto.ToStockFromCreateDto();
+                await _stockrepo.CreateStockAsync(stockModel);
+                return CreatedAtAction(nameof(GetStockById), new {id = stockModel.Id}, stockModel.ToStockDto());
             }
-
-            var stockModel = stockDto.ToStockFromCreateDto();
-            await _stockrepo.CreateStockAsync(stockModel);
-            return CreatedAtAction(nameof(GetStockById), new {id = stockModel.Id}, stockModel.ToStockDto());
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Create Stock failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpPut]
@@ -80,18 +90,21 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateStockrequestDto updateDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            try
+                {
+                var stockModel = await _stockrepo.UpdateStockAsync(id, updateDto);
+                if(stockModel == null)
+                {
+                    return NotFound();
+                }
 
-            var stockModel = await _stockrepo.UpdateStockAsync(id, updateDto);
-            if(stockModel == null)
-            {
-                return NotFound();
+                return Ok(stockModel.ToStockDto());
             }
-
-            return Ok(stockModel.ToStockDto());
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Update Stock failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpDelete]
@@ -100,18 +113,20 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            try{
+                var stockModel = await _stockrepo.DeleteStockAsync(id);
+                if(stockModel == null)
+                {
+                    return NotFound();
+                }
 
-            var stockModel = await _stockrepo.DeleteStockAsync(id);
-            if(stockModel == null)
-            {
-                return NotFound();
+                return NoContent();
             }
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Delete Stock failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
     }
 }

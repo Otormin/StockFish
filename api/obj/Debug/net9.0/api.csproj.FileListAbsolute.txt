@@ -326,3 +326,10 @@ C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\obj\Debug\net9.0\refint\
 C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\obj\Debug\net9.0\api.pdb
 C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\obj\Debug\net9.0\api.genruntimeconfig.cache
 C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\obj\Debug\net9.0\ref\api.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\nlog.config
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\Microsoft.Extensions.Caching.StackExchangeRedis.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\NLog.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\NLog.Extensions.Logging.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\NLog.Web.AspNetCore.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\Pipelines.Sockets.Unofficial.dll
+C:\Users\winif\Documents\Jesse\Code\React\StockFish\api\bin\Debug\net9.0\StackExchange.Redis.dll

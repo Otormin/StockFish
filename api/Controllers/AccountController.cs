@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using api.Dtos.Account;
 using api.Interfaces;
@@ -18,11 +19,14 @@ namespace api.Controllers
         private readonly UserManager<AppUser> _userManager;
         private readonly ITokenService _tokenService;
         private readonly SignInManager<AppUser> _signinManager;
-        public AccountController(UserManager<AppUser> userManager, ITokenService tokenService, SignInManager<AppUser> signinManager)
+        private readonly ILogger<AccountController> _logger;
+        public AccountController(UserManager<AppUser> userManager, ITokenService tokenService, SignInManager<AppUser> signinManager, ILogger<AccountController> logger)
         {
             _userManager = userManager;
             _tokenService = tokenService;
             _signinManager = signinManager;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to Account Controller");
         }
 
         [HttpPost("register")]
@@ -30,11 +34,6 @@ namespace api.Controllers
         {
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
                 var appUser = new AppUser
                 {
                     UserName = registerDto.Username,
@@ -69,7 +68,7 @@ namespace api.Controllers
             }
             catch (Exception ex)
             {
-                //_logger.LogError(ex, "Registration failed");
+                _logger.LogError(ex.Message, "Registration failed");
                 return StatusCode(500, "An internal server error occurred.");
             }
         }
@@ -77,39 +76,41 @@ namespace api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> LoginUser(LoginDto loginDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            try{
+                var user = await _userManager.FindByNameAsync(loginDto.Username);
 
-            var user = await _userManager.FindByNameAsync(loginDto.Username);
-
-            if(user == null)
-            {
-                return Unauthorized("Invalid Username or Password");
-            }
-
-            // Enable LockoutOnFailure
-            var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, true);
-
-            if (result.IsLockedOut)
-            {
-                return StatusCode(429, "Account locked due to multiple failed attempts. Please try again later.");
-            }
-
-            if (!result.Succeeded)
-            {
-                return Unauthorized("Invalid Username or Password");
-            }
-
-            return Ok(
-                new NewUserDto
+                if(user == null)
                 {
-                    UserName = user.UserName,
-                    Email = user.Email,
-                    Token = _tokenService.CreateToken(user)
+                    return Unauthorized("Invalid Username or Password");
                 }
-            );
+
+                // Enable LockoutOnFailure
+                var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, true);
+
+                if (result.IsLockedOut)
+                {
+                    return StatusCode(429, "Account locked due to multiple failed attempts. Please try again later.");
+                }
+
+                if (!result.Succeeded)
+                {
+                    return Unauthorized("Invalid Username or Password");
+                }
+
+                return Ok(
+                    new NewUserDto
+                    {
+                        UserName = user.UserName,
+                        Email = user.Email,
+                        Token = _tokenService.CreateToken(user)
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Login failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
     }
 }

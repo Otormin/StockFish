@@ -20,13 +20,16 @@ namespace api.Controllers
         private readonly IStockRepository _stockRepo;
         private readonly IPortfolioRepository _portfolioRepo;
         private readonly IFMPService _fmpService;
+        private readonly ILogger<CommentController> _logger;
         public PortfolioController(UserManager<AppUser> userManager, 
-        IStockRepository stockRepo, IPortfolioRepository portfolioRepo, IFMPService fmpService)
+        IStockRepository stockRepo, IPortfolioRepository portfolioRepo, IFMPService fmpService, ILogger<CommentController> logger)
         {
             _userManager = userManager;
             _stockRepo = stockRepo;
             _portfolioRepo = portfolioRepo;
             _fmpService = fmpService;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to Portfolio Controller");
         }
 
         [HttpGet]
@@ -47,11 +50,19 @@ namespace api.Controllers
                 
                 return Ok(portfolio);
             */
-
-            var username = User.GetUsername();
-            var appUser = await _userManager.FindByNameAsync(username);
-            var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
-            return Ok(userPortfolio);
+            
+            try
+            {
+                var username = User.GetUsername();
+                var appUser = await _userManager.FindByNameAsync(username);
+                var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
+                return Ok(userPortfolio);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Get User Portfolio failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpPost]
@@ -59,44 +70,51 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> AddPortfolio(string symbol)
         {
-            var username = User.GetUsername();
-            var appUser = await _userManager.FindByNameAsync(username);
-            var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
+            try{
+                var username = User.GetUsername();
+                var appUser = await _userManager.FindByNameAsync(username);
+                var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
 
-            if (stock == null)
-            {
-                stock = await _fmpService.FindStockBySymbolAsync(symbol);
                 if (stock == null)
                 {
-                    return BadRequest("This Stock does not exist");
+                    stock = await _fmpService.FindStockBySymbolAsync(symbol);
+                    if (stock == null)
+                    {
+                        return BadRequest("This Stock does not exist");
+                    }
+                    else
+                    {
+                        await _stockRepo.CreateStockAsync(stock);
+                    }
+                }
+
+                if(stock == null) return BadRequest("Stock not found");
+
+                var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
+
+                if(userPortfolio.Any(e => e.Symbol.ToLower() == symbol.ToLower())) return BadRequest("Cannot add same stock twice");
+            
+                var portfolioModel = new Portfolio
+                {
+                    StockId = stock.Id,
+                    AppUserId = appUser.Id,
+                };
+
+                await _portfolioRepo.CreateUserPortfolioAsync(portfolioModel);
+
+                if(portfolioModel == null)
+                {
+                    return StatusCode(500, "Could not create");
                 }
                 else
                 {
-                    await _stockRepo.CreateStockAsync(stock);
+                    return Created();
                 }
             }
-
-            if(stock == null) return BadRequest("Stock not found");
-
-            var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
-
-            if(userPortfolio.Any(e => e.Symbol.ToLower() == symbol.ToLower())) return BadRequest("Cannot add same stock twice");
-        
-            var portfolioModel = new Portfolio
+            catch (Exception ex)
             {
-                StockId = stock.Id,
-                AppUserId = appUser.Id,
-            };
-
-            await _portfolioRepo.CreateUserPortfolioAsync(portfolioModel);
-
-            if(portfolioModel == null)
-            {
-                return StatusCode(500, "Could not create");
-            }
-            else
-            {
-                return Created();
+                _logger.LogError(ex.Message, "Add Portfolio failed");
+                return StatusCode(500, "An internal server error occurred.");
             }
         }
 
@@ -105,23 +123,31 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> DeletePortfolio(string symbol)
         {
-            var username = User.GetUsername();
-            var appUser = await _userManager.FindByNameAsync(username);
-
-            var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
-
-            var filteredStock = userPortfolio.Where(s => s.Symbol.ToLower() == symbol.ToLower()).ToList();
-
-            if(filteredStock.Count() == 1)
+            try
             {
-                await _portfolioRepo.DeleteUserPortfolioAsync(appUser, symbol);
-            }
-            else
-            {
-                return BadRequest("Stock is not in your portfolio");
-            }
+                var username = User.GetUsername();
+                var appUser = await _userManager.FindByNameAsync(username);
 
-            return Ok();
+                var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
+
+                var filteredStock = userPortfolio.Where(s => s.Symbol.ToLower() == symbol.ToLower()).ToList();
+
+                if(filteredStock.Count() == 1)
+                {
+                    await _portfolioRepo.DeleteUserPortfolioAsync(appUser, symbol);
+                }
+                else
+                {
+                    return BadRequest("Stock is not in your portfolio");
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Delete Portfolio failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
     }
 }

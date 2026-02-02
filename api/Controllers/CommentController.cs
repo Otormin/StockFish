@@ -26,46 +26,54 @@ namespace api.Controllers
         private readonly IStockRepository _stockRepo;
         private readonly UserManager<AppUser> _usermanager;
         private readonly IFMPService _fmpService;
+        private readonly ILogger<CommentController> _logger;
 
-        public CommentController(ICommentRepository commentRepo, IStockRepository stockRepo, UserManager<AppUser> usermanager, IFMPService fmpService)
+        public CommentController(ICommentRepository commentRepo, IStockRepository stockRepo, UserManager<AppUser> usermanager, IFMPService fmpService, ILogger<CommentController> logger)
         {
             _commentRepo = commentRepo;
             _stockRepo = stockRepo;
             _usermanager = usermanager;
             _fmpService = fmpService;
+            _logger = logger;
+            _logger.LogDebug("Nlog is integrated to Comment Controller");
         }
 
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetAllComments([FromQuery] CommentQueryObject queryObject)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
+                var comments = await _commentRepo.GetAllCommentsAsync(queryObject);
+                var CommentDto = comments.Select(s => s.ToCommentDto());
+                return Ok(CommentDto);
             }
-
-            var comments = await _commentRepo.GetAllCommentsAsync(queryObject);
-            var CommentDto = comments.Select(s => s.ToCommentDto());
-            return Ok(CommentDto);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Get Comments failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpGet("{id:int}")]
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> GetCommentById([FromRoute] int id)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            try{
+                var comment = await _commentRepo.GetCommentByIdAsync(id);
+                
+                if(comment == null)
+                {
+                    return NotFound();
+                }
 
-            var comment = await _commentRepo.GetCommentByIdAsync(id);
-            
-            if(comment == null)
-            {
-                return NotFound();
+                return Ok(comment.ToCommentDto());
             }
-
-            return Ok(comment.ToCommentDto());
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Get Comments by ID failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpPost]
@@ -76,33 +84,35 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> CreateComment([FromRoute] string symbol, CreateCommentDto commentDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            try{
+                var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
 
-            var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
-
-            if (stock == null)
-            {
-                stock = await _fmpService.FindStockBySymbolAsync(symbol);
                 if (stock == null)
                 {
-                    return BadRequest("This Stock does not exist");
+                    stock = await _fmpService.FindStockBySymbolAsync(symbol);
+                    if (stock == null)
+                    {
+                        return BadRequest("This Stock does not exist");
+                    }
+                    else
+                    {
+                        await _stockRepo.CreateStockAsync(stock);
+                    }
                 }
-                else
-                {
-                    await _stockRepo.CreateStockAsync(stock);
-                }
+
+                var username = User.GetUsername();
+                var appUser = await _usermanager.FindByNameAsync(username); 
+
+                var commentModel = commentDto.ToCommentFromCreate(stock.Id);
+                commentModel.AppUserId = appUser.Id;
+                await _commentRepo.CreateCommentAsync(commentModel);
+                return CreatedAtAction(nameof(GetCommentById), new {id = commentModel.Id}, commentModel.ToCommentDto());
             }
-
-            var username = User.GetUsername();
-            var appUser = await _usermanager.FindByNameAsync(username); 
-
-            var commentModel = commentDto.ToCommentFromCreate(stock.Id);
-            commentModel.AppUserId = appUser.Id;
-            await _commentRepo.CreateCommentAsync(commentModel);
-            return CreatedAtAction(nameof(GetCommentById), new {id = commentModel.Id}, commentModel.ToCommentDto());
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Post Comment under a particular stock failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
         }
 
         [HttpPut]
@@ -110,19 +120,21 @@ namespace api.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateComment([FromRoute] int id, [FromBody] UpdateCommentRequestDto updateDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
+            try{
+                var comment = await _commentRepo.UpdateCommentAsync(id, updateDto.ToCommentFromUpdate());
+                
+                if (comment == null)
+                {
+                    return NotFound("Comment not found");
+                }
+                
+                return Ok(comment.ToCommentDto());
             }
-
-            var comment = await _commentRepo.UpdateCommentAsync(id, updateDto.ToCommentFromUpdate());
-            
-            if (comment == null)
+            catch (Exception ex)
             {
-                return NotFound("Comment not found");
+                _logger.LogError(ex.Message, "Get Update Comment failed");
+                return StatusCode(500, "An internal server error occurred.");
             }
-            
-            return Ok(comment.ToCommentDto());
         }
 
         [HttpDelete]
@@ -131,19 +143,22 @@ namespace api.Controllers
         [EnableRateLimiting("fixed")]
         public async Task<IActionResult> DeleteComment([FromRoute] int id)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
-            }
+                var commentModel = await _commentRepo.DeleteCommentAsync(id);
             
-            var commentModel = await _commentRepo.DeleteCommentAsync(id);
-            
-            if (commentModel == null)
+                if (commentModel == null)
+                {
+                    return NotFound("Comment does not exist");
+                }
+                
+                return Ok(commentModel);
+            }   
+            catch (Exception ex)
             {
-                return NotFound("Comment does not exist");
+                _logger.LogError(ex.Message, "Delete Comment failed");
+                return StatusCode(500, "An internal server error occurred.");
             }
-            
-            return Ok(commentModel);
         }
     }
 }
