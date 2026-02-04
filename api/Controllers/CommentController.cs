@@ -22,18 +22,12 @@ namespace api.Controllers
     //[EnableRateLimiting("fixed")]
     public class CommentController : ControllerBase
     {
-        private readonly ICommentRepository _commentRepo;
-        private readonly IStockRepository _stockRepo;
-        private readonly UserManager<AppUser> _usermanager;
-        private readonly IFMPService _fmpService;
+        private readonly ICommentService _commentService;
         private readonly ILogger<CommentController> _logger;
 
-        public CommentController(ICommentRepository commentRepo, IStockRepository stockRepo, UserManager<AppUser> usermanager, IFMPService fmpService, ILogger<CommentController> logger)
+        public CommentController(ICommentService commentService, ILogger<CommentController> logger)
         {
-            _commentRepo = commentRepo;
-            _stockRepo = stockRepo;
-            _usermanager = usermanager;
-            _fmpService = fmpService;
+            _commentService = commentService;
             _logger = logger;
             _logger.LogDebug("Nlog is integrated to Comment Controller");
         }
@@ -44,9 +38,14 @@ namespace api.Controllers
         {
             try
             {
-                var comments = await _commentRepo.GetAllCommentsAsync(queryObject);
-                var CommentDto = comments.Select(s => s.ToCommentDto());
-                return Ok(CommentDto);
+                var comments = await _commentService.GetAllComments(queryObject);
+
+                if (comments.StatusCode == 200)
+                {
+                    return Ok(comments.Data);
+                }
+
+                return StatusCode(500, comments.Message);
             }
             catch (Exception ex)
             {
@@ -60,14 +59,23 @@ namespace api.Controllers
         public async Task<IActionResult> GetCommentById([FromRoute] int id)
         {
             try{
-                var comment = await _commentRepo.GetCommentByIdAsync(id);
-                
-                if(comment == null)
+                var comment = await _commentService.GetCommentById(id);
+
+                if (comment.StatusCode == 200)
                 {
-                    return NotFound();
+                    return Ok(comment.Data);
                 }
 
-                return Ok(comment.ToCommentDto());
+                else if (comment.StatusCode == 404)
+                {
+                    return NotFound(comment.Message);
+                }
+
+                else
+                {
+                    return StatusCode(500, comment.Message);
+                }
+
             }
             catch (Exception ex)
             {
@@ -85,28 +93,32 @@ namespace api.Controllers
         public async Task<IActionResult> CreateComment([FromRoute] string symbol, CreateCommentDto commentDto)
         {
             try{
-                var stock = await _stockRepo.GetStockBySymbolAsync(symbol);
+                var createdComment = await _commentService.CreateComment(symbol, commentDto);
 
-                if (stock == null)
+                if (createdComment.StatusCode == 200)
                 {
-                    stock = await _fmpService.FindStockBySymbolAsync(symbol);
-                    if (stock == null)
-                    {
-                        return BadRequest("This Stock does not exist");
-                    }
-                    else
-                    {
-                        await _stockRepo.CreateStockAsync(stock);
-                    }
+                    return Ok(createdComment.Data);
                 }
 
-                var username = User.GetUsername();
-                var appUser = await _usermanager.FindByNameAsync(username); 
+                else if (createdComment.StatusCode == 400)
+                {
+                    return BadRequest(createdComment.Message);
+                }
 
-                var commentModel = commentDto.ToCommentFromCreate(stock.Id);
-                commentModel.AppUserId = appUser.Id;
-                await _commentRepo.CreateCommentAsync(commentModel);
-                return CreatedAtAction(nameof(GetCommentById), new {id = commentModel.Id}, commentModel.ToCommentDto());
+                else if (createdComment.StatusCode == 401)
+                {
+                    return Unauthorized(createdComment.Message);
+                }
+
+                else if (createdComment.StatusCode == 404)
+                {
+                    return NotFound(createdComment.Message);
+                }
+
+                else
+                {
+                    return StatusCode(500, createdComment.Message);
+                }
             }
             catch (Exception ex)
             {
@@ -121,14 +133,17 @@ namespace api.Controllers
         public async Task<IActionResult> UpdateComment([FromRoute] int id, [FromBody] UpdateCommentRequestDto updateDto)
         {
             try{
-                var comment = await _commentRepo.UpdateCommentAsync(id, updateDto.ToCommentFromUpdate());
-                
-                if (comment == null)
+                var updatedComment = await _commentService.UpdateComment(id, updateDto);
+
+                if (updatedComment.StatusCode == 200)
                 {
-                    return NotFound("Comment not found");
+                    return Ok(updatedComment.Data);
                 }
-                
-                return Ok(comment.ToCommentDto());
+
+                else
+                {
+                    return StatusCode(500, updatedComment.Message);
+                }
             }
             catch (Exception ex)
             {
@@ -145,14 +160,17 @@ namespace api.Controllers
         {
             try
             {
-                var commentModel = await _commentRepo.DeleteCommentAsync(id);
-            
-                if (commentModel == null)
+                var deletedComment = await _commentService.DeleteComment(id);
+
+                if (deletedComment.StatusCode == 200)
                 {
-                    return NotFound("Comment does not exist");
+                    return Ok(deletedComment.Data);
                 }
-                
-                return Ok(commentModel);
+
+                else
+                {
+                    return StatusCode(500, deletedComment.Message);
+                }
             }   
             catch (Exception ex)
             {

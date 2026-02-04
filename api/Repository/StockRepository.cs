@@ -62,6 +62,10 @@ namespace api.Repository
                 {
                     stocks = query.IsDescending ? stocks.OrderByDescending(s => s.Symbol) : stocks.OrderBy(s => s.Symbol);
                 }
+                if (query.SortBy.Equals("Industry", StringComparison.OrdinalIgnoreCase))
+                {
+                    stocks = query.IsDescending ? stocks.OrderByDescending(s => s.Industry) : stocks.OrderBy(s => s.Industry);
+                }
             }
 
             var skipNumber = (query.PageNumber - 1) * query.PageSize;

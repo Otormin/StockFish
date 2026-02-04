@@ -16,15 +16,11 @@ namespace api.Controllers
     [ApiController]
     public class AccountController : ControllerBase
     {
-        private readonly UserManager<AppUser> _userManager;
-        private readonly ITokenService _tokenService;
-        private readonly SignInManager<AppUser> _signinManager;
+        private readonly IAccountService _accountService;
         private readonly ILogger<AccountController> _logger;
-        public AccountController(UserManager<AppUser> userManager, ITokenService tokenService, SignInManager<AppUser> signinManager, ILogger<AccountController> logger)
+        public AccountController(ILogger<AccountController> logger, IAccountService accountService)
         {
-            _userManager = userManager;
-            _tokenService = tokenService;
-            _signinManager = signinManager;
+            _accountService = accountService;
             _logger = logger;
             _logger.LogDebug("Nlog is integrated to Account Controller");
         }
@@ -34,36 +30,19 @@ namespace api.Controllers
         {
             try
             {
-                var appUser = new AppUser
-                {
-                    UserName = registerDto.Username,
-                    Email = registerDto.Email,
-                };
+                var registerUser = await _accountService.RegisterUser(registerDto);
 
-                var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
-
-                if (createdUser.Succeeded)
+                if (registerUser.StatusCode == 200)
                 {
-                    var roleResult = await _userManager.AddToRoleAsync(appUser, "User");
-                    if (roleResult.Succeeded)
-                    {
-                        return Ok(
-                            new NewUserDto
-                            {
-                                UserName = appUser.UserName,
-                                Email = appUser.Email,
-                                Token = _tokenService.CreateToken(appUser)
-                            }
-                        );
-                    }
-                    else
-                    {
-                        return StatusCode(500, roleResult.Errors);
-                    }
+                    return Ok(registerUser.Data);
+                }
+                else if (registerUser.StatusCode == 400)
+                {
+                    return BadRequest(registerUser.Message);
                 }
                 else
                 {
-                    return BadRequest(createdUser.Errors);
+                    return StatusCode(500, registerUser.Message);
                 }
             }
             catch (Exception ex)
@@ -74,37 +53,28 @@ namespace api.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> LoginUser(LoginDto loginDto)
+        public async Task<IActionResult> LoginUser([FromBody] LoginDto loginDto)
         {
             try{
-                var user = await _userManager.FindByNameAsync(loginDto.Username);
+                var loginUser = await _accountService.LoginUser(loginDto);
 
-                if(user == null)
+                if (loginUser.StatusCode == 200)
                 {
-                    return Unauthorized("Invalid Username or Password");
+                    return Ok(loginUser.Data);
+                }
+                else if (loginUser.StatusCode == 401)
+                {
+                    return BadRequest(loginUser.Message);
+                }
+                else if (loginUser.StatusCode == 429)
+                {
+                    return StatusCode(429, loginUser.Message);
+                }
+                else
+                {
+                    return StatusCode(500, loginUser.Message);
                 }
 
-                // Enable LockoutOnFailure
-                var result = await _signinManager.CheckPasswordSignInAsync(user, loginDto.Password, true);
-
-                if (result.IsLockedOut)
-                {
-                    return StatusCode(429, "Account locked due to multiple failed attempts. Please try again later.");
-                }
-
-                if (!result.Succeeded)
-                {
-                    return Unauthorized("Invalid Username or Password");
-                }
-
-                return Ok(
-                    new NewUserDto
-                    {
-                        UserName = user.UserName,
-                        Email = user.Email,
-                        Token = _tokenService.CreateToken(user)
-                    }
-                );
             }
             catch (Exception ex)
             {

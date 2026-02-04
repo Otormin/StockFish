@@ -120,6 +120,14 @@ try{
     builder.Services.AddScoped<ITokenService, TokenService>();
     builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
     builder.Services.AddScoped<IFMPService, FMPService>();
+    builder.Services.AddScoped<IAccountService, AccountService>();
+    builder.Services.AddScoped<ICommentService, CommentService>();
+    builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+    builder.Services.AddScoped<IStockService, StockService>();
+
+
+    //for getting user data from the jwt when outside the controller 
+    builder.Services.AddHttpContextAccessor();
 
     //for http client
     builder.Services.AddHttpClient<IFMPService, FMPService>();
@@ -168,7 +176,8 @@ try{
         app.UseSwaggerUI();
     }
 
-    app.UseHttpsRedirection();
+    //dont forget to uncomment this
+    //app.UseHttpsRedirection();
 
     //always use CORS after the httpsDirection
     app.UseCors(x => x

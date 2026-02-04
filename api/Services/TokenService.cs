@@ -27,7 +27,7 @@ namespace api.Services
             var claims = new List<Claim>
             {
                 //you can use this to add Id to the claims
-                //new Claim(JwtRegisteredClaimNames.Sub, user.Id);
+                //new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.GivenName, user.UserName)
             };
@@ -38,7 +38,7 @@ namespace api.Services
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.Now.AddDays(7),
+                Expires = DateTime.UtcNow.AddMinutes(_config.GetValue<int>("JWT:ExpirationInMinutes")),
                 SigningCredentials = creds,
                 Issuer = _config["JWT:Issuer"],
                 Audience = _config["JWT:Audience"]

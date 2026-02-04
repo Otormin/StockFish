@@ -12,18 +12,22 @@ namespace api.Services
 {
     public class FMPService : IFMPService
     {
-        readonly HttpClient _httpClient;
-        readonly IConfiguration _config;
+        private readonly HttpClient _httpClient;
+        private readonly string FMPKey;
+        private readonly string FMPUrl;
+        private readonly IConfiguration _config;
         public FMPService(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
             _config = config;
+            FMPKey = _config["FMPKey"];
+            FMPUrl = _config["FMPUrl"];
         }
         public async Task<Stock> FindStockBySymbolAsync(string symbol)
         {
             try
             {
-                var result = await _httpClient.GetAsync($"https://financialmodelingprep.com/stable/profile?symbol={symbol}&apikey={_config["FMPKey"]}");
+                var result = await _httpClient.GetAsync($"{FMPUrl}?symbol={symbol}&apikey={FMPKey}");
                                 
                 if (result.IsSuccessStatusCode)
                 {
