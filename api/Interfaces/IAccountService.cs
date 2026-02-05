@@ -11,5 +11,6 @@ namespace api.Interfaces
     {
         Task<ApiResponse> LoginUser(LoginDto loginDto);
         Task<ApiResponse> RegisterUser(RegisterDto registerDto);
+        Task<ApiResponse> RefreshToken(RefreshTokenDto refreshTokenDto);
     }
 }

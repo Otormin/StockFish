@@ -64,7 +64,7 @@ try{
         });
     });
 
-    //install newtonsoft.json and microsoft.Aspnetcore.MVC.Newtonsoft and writethis code to prevent object cycles
+    //install newtonsoft.json and microsoft.Aspnetcore.MVC.Newtonsoft and write this code to prevent object cycles
     builder.Services.AddControllers().AddNewtonsoftJson(options =>
     {
         options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
@@ -94,19 +94,25 @@ try{
     .AddEntityFrameworkStores<ApplicationDBContext>();
 
     //add for JWT
-    builder.Services.AddAuthentication(options => {
+    builder.Services.AddAuthentication(options => 
+    {
         options.DefaultAuthenticateScheme = 
         options.DefaultChallengeScheme = 
         options.DefaultForbidScheme = 
         options.DefaultScheme = 
         options.DefaultSignInScheme = 
         options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
-    }).AddJwtBearer(options => {
+    }).AddJwtBearer(options => 
+    {
+        // options.RequireHttpsMetadata = true;
+        // options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
             ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["JWT:Issuer"],
             ValidateAudience = true,
+            ValidIssuer = builder.Configuration["JWT:Issuer"],
             ValidAudience = builder.Configuration["JWT:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"])
@@ -124,6 +130,7 @@ try{
     builder.Services.AddScoped<ICommentService, CommentService>();
     builder.Services.AddScoped<IPortfolioService, PortfolioService>();
     builder.Services.AddScoped<IStockService, StockService>();
+    builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 
     //for getting user data from the jwt when outside the controller 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using api.Helpers;
 using api.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -21,6 +22,7 @@ namespace api.Data
         public DbSet<Stock> Stocks {get; set;}
         public DbSet<Comment> Comments {get; set;}
         public DbSet<Portfolio> Portfolios { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         //Roles - for identity and JWT
         protected override void OnModelCreating(ModelBuilder builder)
@@ -37,8 +39,17 @@ namespace api.Data
              .HasOne(u => u.Stock)
              .WithMany(u => u.Portfolios)
              .HasForeignKey(p => p.StockId);
-            
 
+            builder.Entity<RefreshToken>()
+                .Property(r => r.Id)
+                .HasDefaultValueSql("NEWID()");
+            builder.Entity<RefreshToken>()
+                .Property(r => r.Token)
+                .HasMaxLength(255);
+            builder.Entity<RefreshToken>()
+                .Property(r => r.UserId)
+                .HasMaxLength(450);
+            
             List<IdentityRole> roles = new List<IdentityRole>
             {
                 new IdentityRole

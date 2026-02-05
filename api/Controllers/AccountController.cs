@@ -36,9 +36,9 @@ namespace api.Controllers
                 {
                     return Ok(registerUser.Data);
                 }
-                else if (registerUser.StatusCode == 400)
+                else if (registerUser.StatusCode == 401)
                 {
-                    return BadRequest(registerUser.Message);
+                    return Unauthorized(registerUser.Message);
                 }
                 else
                 {
@@ -64,11 +64,38 @@ namespace api.Controllers
                 }
                 else if (loginUser.StatusCode == 401)
                 {
-                    return BadRequest(loginUser.Message);
+                    return Unauthorized(loginUser.Message);
                 }
                 else if (loginUser.StatusCode == 429)
                 {
                     return StatusCode(429, loginUser.Message);
+                }
+                else
+                {
+                    return StatusCode(500, loginUser.Message);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Login failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
+        }
+
+        [HttpPost("refreshToken")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            try{
+                var loginUser = await _accountService.RefreshToken(refreshTokenDto);
+
+                if (loginUser.StatusCode == 200)
+                {
+                    return Ok(loginUser.Data);
+                }
+                else if (loginUser.StatusCode == 401)
+                {
+                    return Unauthorized(loginUser.Message);
                 }
                 else
                 {

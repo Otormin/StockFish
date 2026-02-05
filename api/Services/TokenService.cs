@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using api.Interfaces;
@@ -22,12 +23,11 @@ namespace api.Services
             _config = config;
             _key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:SigningKey"]));
         }
-        public string CreateToken(AppUser user)
+        public async Task<(string token, DateTime Expires)> CreateToken(AppUser user)
         {
             var claims = new List<Claim>
             {
-                //you can use this to add Id to the claims
-                //new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.GivenName, user.UserName)
             };
@@ -35,10 +35,12 @@ namespace api.Services
             //signing credentials(What type of encryption do you want)
             var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha512Signature);
 
+            var Expires = DateTime.UtcNow.AddMinutes(_config.GetValue<int>("JWT:ExpirationInMinutes"));
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(_config.GetValue<int>("JWT:ExpirationInMinutes")),
+                Expires = Expires,
                 SigningCredentials = creds,
                 Issuer = _config["JWT:Issuer"],
                 Audience = _config["JWT:Audience"]
@@ -48,7 +50,7 @@ namespace api.Services
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
-            return tokenHandler.WriteToken(token);
+            return (tokenHandler.WriteToken(token), Expires);
         }
     }
 }
