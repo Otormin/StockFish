@@ -32,9 +32,10 @@ namespace api.Services
                 new Claim(JwtRegisteredClaimNames.GivenName, user.UserName)
             };
 
+            //signing credentials(What type of encryption do you want)
             var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha512Signature);
 
-            var Expires = DateTime.UtcNow.AddMinutes(_config.GetValue<int>("JWT:ExpirationInMinutes"));
+            var Expires = DateTime.UtcNow.AddMinutes(_config.GetValue<int>("JWT:JWTExpirationInMinutes"));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
