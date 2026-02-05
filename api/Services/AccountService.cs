@@ -170,8 +170,8 @@ namespace api.Services
                         {
                             return new ApiResponse
                             {
-                            StatusCode = 500,
-                            Message = "Could not create refresh token"  
+                                StatusCode = 500,
+                                Message = "Could not create refresh token"  
                             };
                         }
 
@@ -240,7 +240,7 @@ namespace api.Services
 
                 refreshToken.Revoked = DateTime.UtcNow;
                 await _refreshTokenRepository.UpdateRefreshTokenAsync(refreshToken);
-                
+
                 var user = await _userManager.FindByIdAsync(refreshToken.UserId);
                 if(user == null)
                 {

@@ -116,7 +116,8 @@ try{
             ValidAudience = builder.Configuration["JWT:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"])
-            )
+            ),
+            ClockSkew = TimeSpan.Zero
         }; 
     });
 
