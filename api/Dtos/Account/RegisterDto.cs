@@ -22,5 +22,11 @@ namespace api.Dtos.Account
         [MinLength(8, ErrorMessage = "Password must be up to 8 characters")]
         [MaxLength(64, ErrorMessage = "Password cannot be more than 64 characters")]
         public string? Password { get; set; }
+
+        [Required]
+        [MinLength(8, ErrorMessage = "Password must be up to 8 characters")]
+        [MaxLength(64, ErrorMessage = "Password cannot be more than 64 characters")]
+        [Compare("Password", ErrorMessage = "Password do not match")]
+        public string? ConfirmPassword { get; set; }
     }
 }
