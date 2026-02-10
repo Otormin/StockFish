@@ -35,7 +35,7 @@ namespace api.Services
         public async Task<ApiResponse> LoginUser(LoginDto loginDto)
         {
             try{
-                if (string.IsNullOrEmpty(loginDto.Username) && string.IsNullOrEmpty(loginDto.Email))
+                if (string.IsNullOrEmpty(loginDto.UsernameOrEmail))
                 {
                     return new ApiResponse{
                         StatusCode = 401,
@@ -45,13 +45,11 @@ namespace api.Services
 
                 AppUser? user = null;
 
-                if (!string.IsNullOrEmpty(loginDto.Username))
+                user = await _userManager.FindByNameAsync(loginDto.UsernameOrEmail);
+
+                if (user == null)
                 {
-                    user = await _userManager.FindByNameAsync(loginDto.Username);
-                }
-                else if (!string.IsNullOrEmpty(loginDto.Email))
-                {
-                    user = await _userManager.FindByEmailAsync(loginDto.Email);
+                    user = await _userManager.FindByEmailAsync(loginDto.UsernameOrEmail);
                 }
 
                 if (user == null)
@@ -103,7 +101,10 @@ namespace api.Services
                        Message = "Could not create refresh token"  
                     };
                 }
-            
+
+                var refreshTokenValidityInDays = _config.GetValue<int>("JWT:RefreshTokenExpirationInDays");
+                var refreshTokenValidityTimeStamp =  DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+
                 return new ApiResponse
                 {
                     StatusCode = 200,
@@ -115,7 +116,7 @@ namespace api.Services
                         Token = token,
                         TokenExpires = tokenExpires,
                         RefreshToken = refresh.rawToken,
-                        RefreshTokenExpires = refreshToken.ExpiresOnUtc
+                        RefreshTokenExpires = (int)refreshTokenValidityTimeStamp.Subtract(DateTime.UtcNow).TotalSeconds
                     }
                 };
             }
@@ -175,6 +176,9 @@ namespace api.Services
                             };
                         }
 
+                        var refreshTokenValidityInDays = _config.GetValue<int>("JWT:RefreshTokenExpirationInDays");
+                        var refreshTokenValidityTimeStamp =  DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+
                         return new ApiResponse
                         {
                             StatusCode = 200,
@@ -186,7 +190,7 @@ namespace api.Services
                                 Token = token,
                                 TokenExpires = tokenExpires,
                                 RefreshToken = refresh.rawToken,
-                                RefreshTokenExpires = refreshToken.ExpiresOnUtc
+                                RefreshTokenExpires = (int)refreshTokenValidityTimeStamp.Subtract(DateTime.UtcNow).TotalSeconds
                             }
                         };
                     }
@@ -271,6 +275,9 @@ namespace api.Services
                     };
                 }
 
+                var refreshTokenValidityInDays = _config.GetValue<int>("JWT:RefreshTokenExpirationInDays");
+                var refreshTokenValidityTimeStamp =  DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+
                 return new ApiResponse
                 {
                     StatusCode = 200,
@@ -282,7 +289,7 @@ namespace api.Services
                         Token = token,
                         TokenExpires = tokenExpires,
                         RefreshToken = generatedRefreshToken.rawToken,
-                        RefreshTokenExpires = newRefreshToken.ExpiresOnUtc
+                        RefreshTokenExpires = (int)refreshTokenValidityTimeStamp.Subtract(DateTime.UtcNow).TotalSeconds
                     }
                 };
             }

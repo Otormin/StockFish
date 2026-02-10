@@ -27,7 +27,7 @@ namespace api.Controllers
 
         [HttpGet]
         [Authorize]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> GetUserPortfolio()
         {
             try
@@ -55,7 +55,7 @@ namespace api.Controllers
 
         [HttpPost]
         [Authorize]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> AddPortfolio(string symbol)
         {
             try{
@@ -91,7 +91,7 @@ namespace api.Controllers
 
         [HttpDelete]
         [Authorize]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> DeletePortfolio(string symbol)
         {
             try

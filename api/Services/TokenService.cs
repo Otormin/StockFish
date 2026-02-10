@@ -23,7 +23,7 @@ namespace api.Services
             _config = config;
             _key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:SigningKey"]));
         }
-        public async Task<(string token, DateTime Expires)> CreateToken(AppUser user)
+        public async Task<(string token, int Expires)> CreateToken(AppUser user)
         {
             var claims = new List<Claim>
             {
@@ -50,7 +50,9 @@ namespace api.Services
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
-            return (tokenHandler.WriteToken(token), Expires);
+            var ExpiresInSeconds = (int)Expires.Subtract(DateTime.UtcNow).TotalSeconds;
+
+            return (tokenHandler.WriteToken(token), ExpiresInSeconds);
         }
     }
 }

@@ -55,7 +55,8 @@ namespace api.Controllers
         }
 
         [HttpGet("{id:int}")]
-        [EnableRateLimiting("fixed")]
+        [Authorize]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> GetCommentById([FromRoute] int id)
         {
             try{
@@ -89,7 +90,7 @@ namespace api.Controllers
         // The leading "/" overrides the controller's base route (e.g., api/comment)
         // This creates the exact URL: http://localhost:5172/api/stocks/{symbol}/comments
         [Route("/api/stocks/{symbol:alpha}/comments")]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> CreateComment([FromRoute] string symbol, CreateCommentDto commentDto)
         {
             try{
@@ -130,6 +131,7 @@ namespace api.Controllers
         [HttpPut]
         [Route("{id:int}")]
         [Authorize]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> UpdateComment([FromRoute] int id, [FromBody] UpdateCommentRequestDto updateDto)
         {
             try{
@@ -155,7 +157,7 @@ namespace api.Controllers
         [HttpDelete]
         [Route("{id:int}")]
         [Authorize]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> DeleteComment([FromRoute] int id)
         {
             try

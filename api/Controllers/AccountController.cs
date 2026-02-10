@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using api.Dtos.Account;
 using api.Interfaces;
 using api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers
@@ -25,7 +27,9 @@ namespace api.Controllers
             _logger.LogDebug("Nlog is integrated to Account Controller");
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
+        [EnableRateLimiting("auth-limit")]
         public async Task<IActionResult> RegisterUser([FromBody] RegisterDto registerDto)
         {
             try
@@ -52,7 +56,9 @@ namespace api.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
+        [EnableRateLimiting("auth-limit")]
         public async Task<IActionResult> LoginUser([FromBody] LoginDto loginDto)
         {
             try{
@@ -83,7 +89,9 @@ namespace api.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpPost("refreshToken")]
+        [EnableRateLimiting("auth-limit")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
         {
             try{

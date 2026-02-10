@@ -27,8 +27,9 @@ namespace api.Controllers
              _logger.LogDebug("Nlog is integrated to Stock Controller");
         }
 
+        [AllowAnonymous]
         [HttpGet]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> GetAllStocks([FromQuery] QueryObject query)
         {
             try{
@@ -48,8 +49,9 @@ namespace api.Controllers
             }
         }
 
+        [Authorize]
         [HttpGet("{id:int}")]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> GetStockById([FromRoute] int id)
         {
             try{
@@ -74,8 +76,8 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        [Authorize]
-        [EnableRateLimiting("fixed")]
+        [Authorize(Roles = "Admin")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> CreateStock([FromBody] CreateStockRequestDto stockDto)
         {
             try
@@ -97,9 +99,9 @@ namespace api.Controllers
         }
 
         [HttpPut]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [Route("{id:int}")]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> UpdateStock([FromRoute] int id, [FromBody] UpdateStockrequestDto updateDto)
         {
             try
@@ -125,9 +127,9 @@ namespace api.Controllers
         }
 
         [HttpDelete]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [Route("{id:int}")]
-        [EnableRateLimiting("fixed")]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> DeleteStock([FromRoute] int id)
         {
             try{

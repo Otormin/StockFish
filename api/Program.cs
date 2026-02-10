@@ -14,6 +14,8 @@ using System.Threading.RateLimiting;
 //for NLog
 using NLog;
 using NLog.Web;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
 
 // Early init of NLog to allow startup and exception logging, before host is built
 var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
@@ -146,6 +148,58 @@ try{
     {
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+        options.OnRejected = async (context, token) =>
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Try to get the retry time default to 0 if not found
+            context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter);
+            
+            // Ensure at least 1 second
+            var retrySeconds = Math.Max(retryAfter.TotalSeconds, 1); 
+            context.HttpContext.Response.Headers.RetryAfter = $"{retrySeconds}";
+
+            var problemDetailsFactory = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+            
+            var problemDetails = problemDetailsFactory.CreateProblemDetails(
+                context.HttpContext,
+                StatusCodes.Status429TooManyRequests,
+                title: "Too Many Requests",
+                detail: $"Quota exceeded. Please try again after {retrySeconds} seconds."
+            );
+
+            await context.HttpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken: token);
+        };
+
+        options.AddPolicy("auth-limit", httpContext =>
+            RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                factory: partition => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    SegmentsPerWindow = 3,
+                    QueueLimit = 0
+                })
+        );
+
+        options.AddPolicy("ip-sliding", httpContext =>
+        {
+            // High-level users like SuperAdmins get higher limits
+            bool isPrivileged = httpContext.User.IsInRole("SuperAdmin") || httpContext.User.IsInRole("Admin");
+
+            return RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+                factory: partition => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = isPrivileged ? 100 : 10, 
+                    Window = TimeSpan.FromSeconds(10),
+                    SegmentsPerWindow = 5,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = isPrivileged ? 10 : 2
+                });
+        });
+
         // This creates a policy that looks at the user's IP Address
         options.AddPolicy("fixed", httpContext =>
             RateLimitPartition.GetFixedWindowLimiter(
@@ -155,7 +209,7 @@ try{
                     PermitLimit = 10, // Allow 10 requests 
                     Window = TimeSpan.FromSeconds(10), // Every 10 seconds
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = 2
+                    QueueLimit = 0
                 }
             )
         );
@@ -177,6 +231,12 @@ try{
     }); */
 
     var app = builder.Build();
+
+    //This is to get the users IP address instead of the IP address of your hosting provider
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
 
     if (app.Environment.IsDevelopment())
     {
@@ -218,3 +278,44 @@ finally
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     LogManager.Shutdown();
 }
+
+/*
+This code allows you to put the rate limiting middleware above the CORS middleware saving server resources and allowing 
+CORS to get the error and display it on the frontend
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (context, token) =>
+    {
+        var httpContext = context.HttpContext;
+
+        // 1. MANUALLY ADD CORS HEADERS
+        // This ensures React can read the 429 error even if the 
+        // global app.UseCors() hasn't executed yet.
+        httpContext.Response.Headers.AccessControlAllowOrigin = "*"; // Or your specific React URL
+        httpContext.Response.Headers.AccessControlAllowMethods = "GET, POST, PUT, DELETE, OPTIONS";
+        httpContext.Response.Headers.AccessControlAllowHeaders = "Content-Type, Authorization";
+
+        // 2. SET RETRY METADATA
+        context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter);
+        var retrySeconds = Math.Max(retryAfter.TotalSeconds, 1);
+        httpContext.Response.Headers.RetryAfter = $"{retrySeconds}";
+
+        // 3. CREATE PROBLEM DETAILS
+        var problemDetailsFactory = httpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+        var problemDetails = problemDetailsFactory.CreateProblemDetails(
+            httpContext,
+            StatusCodes.Status429TooManyRequests,
+            title: "Too Many Requests",
+            detail: $"Rate limit exceeded. Try again in {retrySeconds} seconds."
+        );
+
+        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken: token);
+    };
+
+    // ... your policies (ip-sliding, etc.)
+});
+
+*/
