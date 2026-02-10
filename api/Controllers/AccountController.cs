@@ -27,8 +27,68 @@ namespace api.Controllers
             _logger.LogDebug("Nlog is integrated to Account Controller");
         }
 
+        /*
         [AllowAnonymous]
-        [HttpPost("register")]
+        [HttpPost("register/super-admin")]
+        [EnableRateLimiting("auth-limit")]
+        public async Task<IActionResult> RegisterSuperAdmin([FromBody] RegisterDto registerDto)
+        {
+            try
+            {
+                var registerUser = await _accountService.RegisterSuperAdmin(registerDto);
+
+                if (registerUser.StatusCode == 200)
+                {
+                    return Ok(registerUser.Data);
+                }
+                else if (registerUser.StatusCode == 401)
+                {
+                    return Unauthorized(registerUser.Message);
+                }
+                else
+                {
+                    return StatusCode(500, registerUser.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Registration failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
+        }
+        */
+
+        [Authorize(Roles = "SuperAdmin")]
+        [HttpPost("register/admin")]
+        [EnableRateLimiting("auth-limit")]
+        public async Task<IActionResult> RegisterAdmin([FromBody] RegisterDto registerDto)
+        {
+            try
+            {
+                var registerUser = await _accountService.RegisterAdmin(registerDto);
+
+                if (registerUser.StatusCode == 200)
+                {
+                    return Ok(registerUser.Data);
+                }
+                else if (registerUser.StatusCode == 401)
+                {
+                    return Unauthorized(registerUser.Message);
+                }
+                else
+                {
+                    return StatusCode(500, registerUser.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Registration failed");
+                return StatusCode(500, "An internal server error occurred.");
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("register/user")]
         [EnableRateLimiting("auth-limit")]
         public async Task<IActionResult> RegisterUser([FromBody] RegisterDto registerDto)
         {

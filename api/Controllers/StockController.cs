@@ -76,7 +76,7 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> CreateStock([FromBody] CreateStockRequestDto stockDto)
         {
@@ -99,7 +99,7 @@ namespace api.Controllers
         }
 
         [HttpPut]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [Route("{id:int}")]
         [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> UpdateStock([FromRoute] int id, [FromBody] UpdateStockrequestDto updateDto)
@@ -127,7 +127,7 @@ namespace api.Controllers
         }
 
         [HttpDelete]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [Route("{id:int}")]
         [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> DeleteStock([FromRoute] int id)

@@ -33,7 +33,8 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [AllowAnonymous]
+        [EnableRateLimiting("ip-sliding")]
         public async Task<IActionResult> GetAllComments([FromQuery] CommentQueryObject queryObject)
         {
             try

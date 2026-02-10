@@ -227,6 +227,198 @@ namespace api.Services
             }
         }
 
+        public async Task<ApiResponse> RegisterSuperAdmin(RegisterDto registerDto)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(registerDto.Username) && string.IsNullOrEmpty(registerDto.Email))
+                {
+                    return new ApiResponse{
+                        StatusCode = 401,
+                        Message = "Please provide a Username and an Email address."
+                    };
+                }
+
+                var appUser = new AppUser
+                {
+                    UserName = registerDto.Username,
+                    Email = registerDto.Email,
+                };
+
+                var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
+
+                if (createdUser.Succeeded)
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(appUser, "SuperAdmin");
+                    if (roleResult.Succeeded)
+                    {
+                        var (token, tokenExpires) = await _tokenService.CreateToken(appUser);
+                        var refresh = RefreshTokenService.GenerateRefreshToken();
+                        var refreshToken = new RefreshToken
+                        {
+                            Token = refresh.hashedToken,
+                            UserId = appUser.Id,
+                            ExpiresOnUtc = DateTime.UtcNow.AddDays(_config.GetValue<int>("JWT:RefreshTokenExpirationInDays")),
+                            Created = DateTime.UtcNow
+                        };
+
+                        var createdRefreshToken = await _refreshTokenRepository.CreateRefreshTokenAsync(refreshToken);
+                        if(createdRefreshToken == null)
+                        {
+                            return new ApiResponse
+                            {
+                                StatusCode = 500,
+                                Message = "Could not create refresh token"  
+                            };
+                        }
+
+                        var refreshTokenValidityInDays = _config.GetValue<int>("JWT:RefreshTokenExpirationInDays");
+                        var refreshTokenValidityTimeStamp =  DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+
+                        return new ApiResponse
+                        {
+                            StatusCode = 200,
+                            Message = "User Successfully Created",
+                            Data = new NewUserDto
+                            {
+                                UserName = appUser.UserName,
+                                Email = appUser.Email,
+                                Token = token,
+                                TokenExpires = tokenExpires,
+                                RefreshToken = refresh.rawToken,
+                                RefreshTokenExpires = (int)refreshTokenValidityTimeStamp.Subtract(DateTime.UtcNow).TotalSeconds
+                            }
+                        };
+                    }
+                    else
+                    {
+                        var errors = string.Join(", ", createdUser.Errors.Select(e => e.Description));
+
+                        return new ApiResponse
+                        {
+                            StatusCode = 500,
+                            Message = errors,
+                        };
+                    }
+                }
+                else
+                {
+                    var errors = string.Join(", ", createdUser.Errors.Select(e => e.Description));
+
+                    return new ApiResponse
+                    {
+                        StatusCode = 500,
+                        Message = errors,
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Registration failed");
+                return new ApiResponse
+                {
+                    StatusCode = 500,
+                    Message = "An internal server error occurred.",
+                };
+            }
+        }
+
+        public async Task<ApiResponse> RegisterAdmin(RegisterDto registerDto)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(registerDto.Username) && string.IsNullOrEmpty(registerDto.Email))
+                {
+                    return new ApiResponse{
+                        StatusCode = 401,
+                        Message = "Please provide a Username and an Email address."
+                    };
+                }
+
+                var appUser = new AppUser
+                {
+                    UserName = registerDto.Username,
+                    Email = registerDto.Email,
+                };
+
+                var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
+
+                if (createdUser.Succeeded)
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(appUser, "Admin");
+                    if (roleResult.Succeeded)
+                    {
+                        var (token, tokenExpires) = await _tokenService.CreateToken(appUser);
+                        var refresh = RefreshTokenService.GenerateRefreshToken();
+                        var refreshToken = new RefreshToken
+                        {
+                            Token = refresh.hashedToken,
+                            UserId = appUser.Id,
+                            ExpiresOnUtc = DateTime.UtcNow.AddDays(_config.GetValue<int>("JWT:RefreshTokenExpirationInDays")),
+                            Created = DateTime.UtcNow
+                        };
+
+                        var createdRefreshToken = await _refreshTokenRepository.CreateRefreshTokenAsync(refreshToken);
+                        if(createdRefreshToken == null)
+                        {
+                            return new ApiResponse
+                            {
+                                StatusCode = 500,
+                                Message = "Could not create refresh token"  
+                            };
+                        }
+
+                        var refreshTokenValidityInDays = _config.GetValue<int>("JWT:RefreshTokenExpirationInDays");
+                        var refreshTokenValidityTimeStamp =  DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+
+                        return new ApiResponse
+                        {
+                            StatusCode = 200,
+                            Message = "User Successfully Created",
+                            Data = new NewUserDto
+                            {
+                                UserName = appUser.UserName,
+                                Email = appUser.Email,
+                                Token = token,
+                                TokenExpires = tokenExpires,
+                                RefreshToken = refresh.rawToken,
+                                RefreshTokenExpires = (int)refreshTokenValidityTimeStamp.Subtract(DateTime.UtcNow).TotalSeconds
+                            }
+                        };
+                    }
+                    else
+                    {
+                        var errors = string.Join(", ", createdUser.Errors.Select(e => e.Description));
+
+                        return new ApiResponse
+                        {
+                            StatusCode = 500,
+                            Message = errors,
+                        };
+                    }
+                }
+                else
+                {
+                    var errors = string.Join(", ", createdUser.Errors.Select(e => e.Description));
+
+                    return new ApiResponse
+                    {
+                        StatusCode = 500,
+                        Message = errors,
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message, "Registration failed");
+                return new ApiResponse
+                {
+                    StatusCode = 500,
+                    Message = "An internal server error occurred.",
+                };
+            }
+        }
+
         public async Task<ApiResponse> RefreshToken(RefreshTokenDto refreshTokenDto)
         {
             try
